@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>システムスマホ</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f4;
+      --surface: #ffffff;
+      --text: #171a1c;
+      --muted: #626a70;
+      --line: #d8ded8;
+      --accent: #047c69;
+      --accent-2: #b2452f;
+      --danger: #b42318;
+      --ok: #15703d;
+      --ink: #101418;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111411;
+        --surface: #1b201d;
+        --text: #f3f5f1;
+        --muted: #a7b0aa;
+        --line: #343c36;
+        --accent: #50c8b4;
+        --accent-2: #e09a87;
+        --danger: #ffb4ab;
+        --ok: #94d5a5;
+        --ink: #0b0d0c;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(100%, 980px);
+      margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 14px max(28px, env(safe-area-inset-bottom));
+    }
+
+    header {
+      display: grid;
+      gap: 8px;
+      padding: 6px 2px 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 9vw, 52px);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    form,
+    .preview,
+    .logbox {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    form {
+      display: grid;
+      gap: 13px;
+      padding: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      accent-color: var(--accent);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button,
+    .download {
+      min-height: 46px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      background: var(--accent);
+      font: inherit;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    button.secondary {
+      background: var(--accent-2);
+    }
+
+    button:disabled,
+    .download[aria-disabled="true"] {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+    .preview {
+      padding: 10px;
+    }
+
+    .stage {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #050706;
+      border-radius: 6px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    video {
+      display: none;
+    }
+
+    .status {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .statusline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .pill.ok {
+      color: var(--ok);
+    }
+
+    .pill.bad {
+      color: var(--danger);
+    }
+
+    progress {
+      width: 100%;
+      height: 12px;
+      accent-color: var(--accent);
+    }
+
+    .logbox {
+      margin-top: 14px;
+      padding: 12px;
+    }
+
+    pre {
+      min-height: 144px;
+      max-height: 260px;
+      overflow: auto;
+      margin: 0;
+      padding: 11px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: #e9f0ef;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 0;
+    }
+
+    @media (max-width: 820px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .row,
+      .actions {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>システムスマホ</h1>
+      <p class="lead">iPhoneのブラウザ内だけで簡易顔入れ替え動画を作成します。素材は端末内で処理されます。</p>
+    </header>
+
+    <div class="layout">
+      <form id="controls">
+        <label>
+          変えたい顔の画像
+          <input id="sourceInput" type="file" accept="image/*" required>
+        </label>
+
+        <label>
+          元動画
+          <input id="videoInput" type="file" accept="video/*" required>
+        </label>
+
+        <div class="row">
+          <label>
+            対象
+            <select id="faceMode">
+              <option value="largest">一番大きい顔</option>
+              <option value="all">検出した全員</option>
+            </select>
+          </label>
+
+          <label>
+            出力幅
+            <select id="maxWidth">
+              <option value="480">480</option>
+              <option value="640" selected>640</option>
+              <option value="720">720</option>
+              <option value="1080">1080</option>
+              <option value="source">元動画</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            画質
+            <select id="qualityMode">
+              <option value="max" selected>最大</option>
+              <option value="high">高</option>
+              <option value="balanced">標準</option>
+            </select>
+          </label>
+
+          <label>
+            動画の長さ
+            <select id="lengthMode">
+              <option value="short" selected>短め高品質</option>
+              <option value="balanced">標準</option>
+              <option value="long">長尺優先</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            合成の強さ
+            <input id="strength" type="range" min="0.45" max="1" step="0.05" value="0.9">
+          </label>
+
+          <label>
+            顔の大きさ
+            <input id="faceScale" type="range" min="0.9" max="1.35" step="0.03" value="1.12">
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="startButton" type="submit">実行</button>
+          <button id="stopButton" class="secondary" type="button" disabled>停止</button>
+        </div>
+
+        <a id="downloadLink" class="download" href="#" download="system-mobile-output.webm" aria-disabled="true">完成動画を保存</a>
+        <p class="small">最大画質は端末負荷が高くなります。長い動画は長尺優先か出力幅720以下が安定します。</p>
+      </form>
+
+      <section>
+        <div class="preview">
+          <div class="stage">
+            <canvas id="canvas" width="640" height="360"></canvas>
+          </div>
+          <video id="video" playsinline crossorigin="anonymous"></video>
+          <div class="status">
+            <div class="statusline">
+              <strong>状態</strong>
+              <span id="state" class="pill">待機中</span>
+            </div>
+            <progress id="progress" max="100" value="0"></progress>
+          </div>
+        </div>
+        <div class="logbox">
+          <pre id="log">画像と動画を選んで実行してください。</pre>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const sourceInput = document.getElementById("sourceInput");
+    const videoInput = document.getElementById("videoInput");
+    const faceMode = document.getElementById("faceMode");
+    const maxWidth = document.getElementById("maxWidth");
+    const qualityMode = document.getElementById("qualityMode");
+    const lengthMode = document.getElementById("lengthMode");
+    const strength = document.getElementById("strength");
+    const faceScale = document.getElementById("faceScale");
+    const startButton = document.getElementById("startButton");
+    const stopButton = document.getElementById("stopButton");
+    const downloadLink = document.getElementById("downloadLink");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const video = document.getElementById("video");
+    const state = document.getElementById("state");
+    const progress = document.getElementById("progress");
+    const logEl = document.getElementById("log");
+    const controls = document.getElementById("controls");
+
+    let faceMesh = null;
+    let faceResolver = null;
+    let sourceFaceCanvas = null;
+    let sourceFaceAngle = 0;
+    let recorder = null;
+    let chunks = [];
+    let stopped = false;
+    let sourceVideoUrl = null;
+    let outputUrl = null;
+    let smoothedItems = [];
+    let timelineCursor = 0;
+
+    const FACE_LANDMARKS = [10, 152, 234, 454, 127, 356, 93, 323, 132, 361, 58, 288];
+    const FACE_OVAL = [
+      10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+      397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+      172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
+    ];
+
+    function setState(text, type = "") {
+      state.textContent = text;
+      state.className = "pill" + (type ? " " + type : "");
+    }
+
+    function log(text) {
+      logEl.textContent += "\n" + text;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function resetLog(text) {
+      logEl.textContent = text;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function lerp(a, b, amount) {
+      return a + (b - a) * amount;
+    }
+
+    function cloneFace(face) {
+      return face.map(point => point ? {
+        x: point.x,
+        y: point.y,
+        z: point.z || 0
+      } : null);
+    }
+
+    function cloneItem(item) {
+      return {
+        face: cloneFace(item.face),
+        box: { ...item.box },
+        angle: item.angle || 0
+      };
+    }
+
+    function blendFaces(a, b, amount) {
+      const length = Math.max(a.length, b.length);
+      const face = new Array(length);
+      for (let index = 0; index < length; index++) {
+        const from = a[index] || b[index];
+        const to = b[index] || a[index];
+        face[index] = from && to ? {
+          x: lerp(from.x, to.x, amount),
+          y: lerp(from.y, to.y, amount),
+          z: lerp(from.z || 0, to.z || 0, amount)
+        } : null;
+      }
+      return face;
+    }
+
+    function averagePoint(face, indexes, width, height) {
+      let x = 0;
+      let y = 0;
+      let count = 0;
+      for (const index of indexes) {
+        const point = face[index];
+        if (!point) continue;
+        x += point.x * width;
+        y += point.y * height;
+        count += 1;
+      }
+      return count ? { x: x / count, y: y / count } : null;
+    }
+
+    function faceRollAngle(face, width, height) {
+      const leftEye = averagePoint(face, [33, 133, 159, 145], width, height);
+      const rightEye = averagePoint(face, [263, 362, 386, 374], width, height);
+      if (!leftEye || !rightEye) return 0;
+      return Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+    }
+
+    function faceDistance(a, b) {
+      const acx = a.box.x + a.box.w / 2;
+      const acy = a.box.y + a.box.h / 2;
+      const bcx = b.box.x + b.box.w / 2;
+      const bcy = b.box.y + b.box.h / 2;
+      const dx = acx - bcx;
+      const dy = acy - bcy;
+      const size = Math.max(1, (a.box.w + a.box.h + b.box.w + b.box.h) / 4);
+      return Math.sqrt(dx * dx + dy * dy) / size;
+    }
+
+    function stabilizeFaceOrder(items, previousItems) {
+      if (!previousItems.length || items.length <= 1) {
+        return items.sort((a, b) => a.box.x - b.box.x);
+      }
+
+      const remaining = items.slice();
+      const ordered = [];
+      for (const previous of previousItems) {
+        let bestIndex = -1;
+        let bestScore = Infinity;
+        remaining.forEach((item, index) => {
+          const score = faceDistance(previous, item);
+          if (score < bestScore) {
+            bestScore = score;
+            bestIndex = index;
+          }
+        });
+        if (bestIndex >= 0 && bestScore < 2.4) {
+          ordered.push(remaining.splice(bestIndex, 1)[0]);
+        }
+      }
+
+      remaining.sort((a, b) => a.box.x - b.box.x);
+      return ordered.concat(remaining);
+    }
+
+    function selectedAnalysisFps() {
+      if (lengthMode.value === "long") return qualityMode.value === "max" ? 10 : 8;
+      if (lengthMode.value === "balanced") return qualityMode.value === "max" ? 15 : 12;
+      return qualityMode.value === "max" ? 24 : 18;
+    }
+
+    async function seekVideo(time) {
+      const duration = Number.isFinite(video.duration) ? video.duration : time;
+      const target = clamp(time, 0, Math.max(0, duration));
+      if (Math.abs(video.currentTime - target) < 0.003 && video.readyState >= 2) return;
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          video.removeEventListener("seeked", onSeeked);
+          reject(new Error("動画のシークに失敗しました。"));
+        }, 8000);
+        const onSeeked = () => {
+          clearTimeout(timeout);
+          video.removeEventListener("seeked", onSeeked);
+          resolve();
+        };
+        video.addEventListener("seeked", onSeeked);
+        video.currentTime = target;
+      });
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function ensureFaceMesh() {
+      if (faceMesh) return faceMesh;
+      if (!window.FaceMesh) {
+        throw new Error("顔検出ライブラリを読み込めませんでした。通信状態を確認してください。");
+      }
+
+      setState("顔検出を準備中");
+      faceMesh = new FaceMesh({
+        locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+      });
+      faceMesh.setOptions({
+        maxNumFaces: 4,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.7
+      });
+      faceMesh.onResults(results => {
+        if (faceResolver) {
+          faceResolver(results.multiFaceLandmarks || []);
+          faceResolver = null;
+        }
+      });
+      return faceMesh;
+    }
+
+    async function detectFaces(image) {
+      await ensureFaceMesh();
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          faceResolver = null;
+          reject(new Error("顔検出がタイムアウトしました。"));
+        }, 8000);
+        faceResolver = faces => {
+          clearTimeout(timeout);
+          resolve(faces);
+        };
+        faceMesh.send({ image }).catch(error => {
+          clearTimeout(timeout);
+          faceResolver = null;
+          reject(error);
+        });
+      });
+    }
+
+    function faceBounds(face, width, height, scale = 1) {
+      let minX = 1, minY = 1, maxX = 0, maxY = 0;
+      for (const index of FACE_LANDMARKS) {
+        const point = face[index];
+        if (!point) continue;
+        minX = Math.min(minX, point.x);
+        minY = Math.min(minY, point.y);
+        maxX = Math.max(maxX, point.x);
+        maxY = Math.max(maxY, point.y);
+      }
+
+      let x = minX * width;
+      let y = minY * height;
+      let w = (maxX - minX) * width;
+      let h = (maxY - minY) * height;
+      if (w <= 4 || h <= 4) return null;
+
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      w *= scale;
+      h *= scale;
+      x = clamp(cx - w / 2, 0, width - 1);
+      y = clamp(cy - h / 2, 0, height - 1);
+      w = clamp(w, 1, width - x);
+      h = clamp(h, 1, height - y);
+      return { x, y, w, h, area: w * h };
+    }
+
+    function selectFaces(faces, width, height, previousItems = []) {
+      const boxes = faces
+        .map(face => ({
+          face: cloneFace(face),
+          box: faceBounds(face, width, height, Number(faceScale.value)),
+          angle: faceRollAngle(face, width, height)
+        }))
+        .filter(item => item.box);
+
+      if (faceMode.value === "all") return stabilizeFaceOrder(boxes, previousItems);
+      boxes.sort((a, b) => b.box.area - a.box.area);
+      return boxes.slice(0, 1);
+    }
+
+    async function loadImageBitmap(file) {
+      if ("createImageBitmap" in window) {
+        return await createImageBitmap(file);
+      }
+      return await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = URL.createObjectURL(file);
+      });
+    }
+
+    async function prepareSourceFace(file) {
+      const image = await loadImageBitmap(file);
+      const temp = document.createElement("canvas");
+      const maxSide = 900;
+      const ratio = Math.min(1, maxSide / Math.max(image.width, image.height));
+      temp.width = Math.max(1, Math.round(image.width * ratio));
+      temp.height = Math.max(1, Math.round(image.height * ratio));
+      const tempCtx = temp.getContext("2d", { willReadFrequently: true });
+      tempCtx.imageSmoothingEnabled = true;
+      tempCtx.imageSmoothingQuality = "high";
+      tempCtx.drawImage(image, 0, 0, temp.width, temp.height);
+
+      const faces = await detectFaces(temp);
+      if (!faces.length) {
+        throw new Error("顔画像から顔を検出できませんでした。明るい正面の顔写真を使ってください。");
+      }
+
+      const largestItem = faces
+        .map(face => ({
+          face,
+          box: faceBounds(face, temp.width, temp.height, 1.22),
+          angle: faceRollAngle(face, temp.width, temp.height)
+        }))
+        .filter(item => item.box)
+        .sort((a, b) => b.box.area - a.box.area)[0];
+      const largest = largestItem && largestItem.box;
+      if (!largest) throw new Error("顔画像の切り出しに失敗しました。");
+
+      sourceFaceAngle = largestItem.angle;
+
+      const crop = document.createElement("canvas");
+      crop.width = Math.max(24, Math.round(largest.w));
+      crop.height = Math.max(24, Math.round(largest.h));
+      const cropCtx = crop.getContext("2d");
+      cropCtx.imageSmoothingEnabled = true;
+      cropCtx.imageSmoothingQuality = "high";
+      cropCtx.drawImage(
+        temp,
+        largest.x,
+        largest.y,
+        largest.w,
+        largest.h,
+        0,
+        0,
+        crop.width,
+        crop.height
+      );
+      sourceFaceCanvas = crop;
+      log("顔画像を読み込みました。");
+    }
+
+    async function loadVideo(file) {
+      if (sourceVideoUrl) URL.revokeObjectURL(sourceVideoUrl);
+      sourceVideoUrl = URL.createObjectURL(file);
+      video.src = sourceVideoUrl;
+      video.muted = false;
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = resolve;
+        video.onerror = () => reject(new Error("動画を読み込めませんでした。"));
+      });
+
+      const limit = maxWidth.value === "source" ? video.videoWidth : Number(maxWidth.value);
+      const ratio = Math.min(1, limit / video.videoWidth);
+      canvas.width = Math.max(2, Math.round(video.videoWidth * ratio));
+      canvas.height = Math.max(2, Math.round(video.videoHeight * ratio));
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#050706";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      log(`動画を読み込みました: ${video.videoWidth}x${video.videoHeight}`);
+      log(`ブラウザ内処理の出力: ${canvas.width}x${canvas.height}`);
+    }
+
+    function chooseMimeType() {
+      const types = [
+        "video/mp4;codecs=avc1.42E01E",
+        "video/mp4",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ];
+      return types.find(type => window.MediaRecorder && MediaRecorder.isTypeSupported(type)) || "";
+    }
+
+    function makeRecorderStream(fps) {
+      const canvasStream = canvas.captureStream(Math.max(12, Math.min(30, fps || 24)));
+      const mixed = new MediaStream();
+      for (const track of canvasStream.getVideoTracks()) mixed.addTrack(track);
+
+      const videoCapture = video.captureStream ? video.captureStream() : null;
+      if (videoCapture) {
+        for (const track of videoCapture.getAudioTracks()) mixed.addTrack(track);
+      } else {
+        log("このブラウザでは元動画の音声結合に対応していないため、音声なしで保存します。");
+      }
+      return mixed;
+    }
+
+    function selectedBitrate() {
+      const pixels = canvas.width * canvas.height;
+      const base = pixels >= 1920 * 1080 ? 14000000
+        : pixels >= 1280 * 720 ? 9000000
+        : pixels >= 854 * 480 ? 5200000
+        : 3200000;
+      const qualityFactor = qualityMode.value === "max" ? 1.45 : qualityMode.value === "high" ? 1.15 : 0.9;
+      const lengthFactor = lengthMode.value === "long" ? 0.78 : 1;
+      return Math.round(base * qualityFactor * lengthFactor);
+    }
+
+    function smoothSelected(items) {
+      const keep = lengthMode.value === "short" ? 0.58 : 0.72;
+      const smoothed = items.map((item, index) => {
+        const previous = smoothedItems[index];
+        if (!previous) return item;
+        const face = item.face.map((point, pointIndex) => {
+          const old = previous.face[pointIndex] || point;
+          return {
+            x: old.x * keep + point.x * (1 - keep),
+            y: old.y * keep + point.y * (1 - keep),
+            z: (old.z || 0) * keep + (point.z || 0) * (1 - keep)
+          };
+        });
+        return { face, box: faceBounds(face, canvas.width, canvas.height, Number(faceScale.value)) || item.box };
+      });
+      smoothedItems = smoothed;
+      return smoothed;
+    }
+
+    function smoothFace(face, previous, keep) {
+      if (!previous) return cloneFace(face);
+      return blendFaces(previous, face, 1 - keep);
+    }
+
+    function itemFromFace(face, fallback) {
+      const box = faceBounds(face, canvas.width, canvas.height, Number(faceScale.value)) || fallback.box;
+      return {
+        face,
+        box,
+        angle: faceRollAngle(face, canvas.width, canvas.height)
+      };
+    }
+
+    function smoothTimeline(samples) {
+      const keep = lengthMode.value === "short" ? 0.52 : lengthMode.value === "balanced" ? 0.62 : 0.72;
+      const forward = [];
+      let previous = [];
+
+      for (const sample of samples) {
+        const items = sample.items.map((item, index) => {
+          const face = smoothFace(item.face, previous[index] && previous[index].face, keep);
+          return itemFromFace(face, item);
+        });
+        forward.push({ time: sample.time, items });
+        previous = items;
+      }
+
+      const output = new Array(forward.length);
+      previous = [];
+      for (let index = forward.length - 1; index >= 0; index--) {
+        const sample = forward[index];
+        const items = sample.items.map((item, itemIndex) => {
+          const face = smoothFace(item.face, previous[itemIndex] && previous[itemIndex].face, keep);
+          return itemFromFace(face, item);
+        });
+        output[index] = { time: sample.time, items };
+        previous = items;
+      }
+      return output;
+    }
+
+    function interpolateItems(from, to, amount) {
+      const count = Math.max(from.items.length, to.items.length);
+      const items = [];
+      for (let index = 0; index < count; index++) {
+        const a = from.items[index];
+        const b = to.items[index];
+        if (a && b) {
+          const face = blendFaces(a.face, b.face, amount);
+          items.push(itemFromFace(face, a));
+        } else if (a || b) {
+          items.push(cloneItem(a || b));
+        }
+      }
+      return items;
+    }
+
+    function timelineItemsAt(timeline, time) {
+      if (!timeline.length) return [];
+      while (timelineCursor < timeline.length - 2 && timeline[timelineCursor + 1].time <= time) {
+        timelineCursor += 1;
+      }
+
+      const current = timeline[timelineCursor];
+      const next = timeline[Math.min(timelineCursor + 1, timeline.length - 1)];
+      if (!next || current === next) return current.items.map(cloneItem);
+
+      const span = Math.max(0.001, next.time - current.time);
+      const amount = clamp((time - current.time) / span, 0, 1);
+      return interpolateItems(current, next, amount);
+    }
+
+    async function analyzeVideoTimeline() {
+      const duration = Math.max(0, video.duration || 0);
+      const fps = selectedAnalysisFps();
+      const step = 1 / fps;
+      const totalSteps = Math.max(1, Math.ceil(duration / step));
+      const holdSteps = Math.max(1, Math.round(fps * 0.35));
+      const samples = [];
+      let previousItems = [];
+      let missedFrames = 0;
+      let detectedFrames = 0;
+
+      video.pause();
+      setState("顔位置を解析中");
+      log(`顔位置を先読み解析します: ${fps}fps相当`);
+
+      for (let frameIndex = 0; frameIndex <= totalSteps && !stopped; frameIndex++) {
+        const time = Math.min(duration, frameIndex * step);
+        await seekVideo(time);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const faces = await detectFaces(canvas);
+        let items = selectFaces(faces, canvas.width, canvas.height, previousItems);
+        if (items.length) {
+          detectedFrames += 1;
+          missedFrames = 0;
+          previousItems = items.map(cloneItem);
+        } else if (previousItems.length && missedFrames < holdSteps) {
+          missedFrames += 1;
+          items = previousItems.map(cloneItem);
+        } else {
+          missedFrames += 1;
+          previousItems = [];
+        }
+
+        samples.push({ time, items });
+        progress.value = clamp((frameIndex / totalSteps) * 52, 0, 52);
+        if (frameIndex % 8 === 0) await sleep(0);
+      }
+
+      const totalFaces = samples.reduce((sum, sample) => sum + sample.items.length, 0);
+      if (!totalFaces) {
+        throw new Error("動画内の顔を検出できませんでした。明るい動画、正面に近い顔で試してください。");
+      }
+
+      const timeline = smoothTimeline(samples);
+      log(`顔位置解析が完了しました: ${samples.length}点 / 検出${detectedFrames}点`);
+      return timeline;
+    }
+
+    function drawFace(item) {
+      const box = item.box;
+      const x = Math.round(box.x);
+      const y = Math.round(box.y);
+      const w = Math.round(box.w);
+      const h = Math.round(box.h);
+      if (w < 8 || h < 8) return;
+
+      const sourceWork = document.createElement("canvas");
+      sourceWork.width = w;
+      sourceWork.height = h;
+      const sourceCtx = sourceWork.getContext("2d", { willReadFrequently: true });
+      sourceCtx.imageSmoothingEnabled = true;
+      sourceCtx.imageSmoothingQuality = "high";
+      sourceCtx.clearRect(0, 0, w, h);
+      sourceCtx.save();
+      sourceCtx.translate(w / 2, h / 2);
+      sourceCtx.rotate((item.angle || 0) - sourceFaceAngle);
+      sourceCtx.scale(1.08, 1.08);
+      sourceCtx.drawImage(sourceFaceCanvas, -w / 2, -h / 2, w, h);
+      sourceCtx.restore();
+
+      const targetData = ctx.getImageData(x, y, w, h);
+      const sourceData = sourceCtx.getImageData(0, 0, w, h);
+      const mask = makeFaceOvalMask(item.face, box, w, h);
+      colorMatch(sourceData.data, targetData.data, mask);
+      sharpen(sourceData.data, w, h);
+
+      const output = ctx.createImageData(w, h);
+      const alphaStrength = Number(strength.value);
+      for (let py = 0; py < h; py++) {
+        for (let px = 0; px < w; px++) {
+          const i = (py * w + px) * 4;
+          const sourceAlpha = sourceData.data[i + 3] / 255;
+          const alpha = mask[i + 3] / 255 * alphaStrength * sourceAlpha;
+
+          output.data[i] = sourceData.data[i] * alpha + targetData.data[i] * (1 - alpha);
+          output.data[i + 1] = sourceData.data[i + 1] * alpha + targetData.data[i + 1] * (1 - alpha);
+          output.data[i + 2] = sourceData.data[i + 2] * alpha + targetData.data[i + 2] * (1 - alpha);
+          output.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(output, x, y);
+    }
+
+    function makeFaceOvalMask(face, box, width, height) {
+      const maskCanvas = document.createElement("canvas");
+      maskCanvas.width = width;
+      maskCanvas.height = height;
+      const maskCtx = maskCanvas.getContext("2d");
+      maskCtx.fillStyle = "black";
+      maskCtx.fillRect(0, 0, width, height);
+      maskCtx.fillStyle = "white";
+      maskCtx.beginPath();
+      FACE_OVAL.forEach((index, order) => {
+        const point = face[index];
+        const x = (point.x * canvas.width - box.x) / box.w * width;
+        const y = (point.y * canvas.height - box.y) / box.h * height;
+        if (order === 0) maskCtx.moveTo(x, y);
+        else maskCtx.lineTo(x, y);
+      });
+      maskCtx.closePath();
+      maskCtx.fill();
+
+      const blur = Math.max(8, Math.round(Math.min(width, height) * 0.09));
+      const blurCanvas = document.createElement("canvas");
+      blurCanvas.width = width;
+      blurCanvas.height = height;
+      const blurCtx = blurCanvas.getContext("2d");
+      blurCtx.filter = `blur(${blur}px)`;
+      blurCtx.drawImage(maskCanvas, 0, 0);
+      blurCtx.filter = "none";
+      return blurCtx.getImageData(0, 0, width, height).data;
+    }
+
+    function colorMatch(source, target, mask) {
+      const src = [0, 0, 0];
+      const dst = [0, 0, 0];
+      let weightSum = 0;
+      for (let i = 0; i < source.length; i += 4) {
+        const weight = (mask[i + 3] / 255) * Math.max(0.12, source[i + 3] / 255);
+        if (weight <= 0.02) continue;
+        weightSum += weight;
+        src[0] += source[i] * weight;
+        src[1] += source[i + 1] * weight;
+        src[2] += source[i + 2] * weight;
+        dst[0] += target[i] * weight;
+        dst[1] += target[i + 1] * weight;
+        dst[2] += target[i + 2] * weight;
+      }
+      if (weightSum <= 0) return;
+      for (let c = 0; c < 3; c++) {
+        src[c] /= weightSum;
+        dst[c] /= weightSum;
+      }
+
+      const srcVar = [0, 0, 0];
+      const dstVar = [0, 0, 0];
+      for (let i = 0; i < source.length; i += 4) {
+        const weight = (mask[i + 3] / 255) * Math.max(0.12, source[i + 3] / 255);
+        if (weight <= 0.02) continue;
+        for (let c = 0; c < 3; c++) {
+          const s = source[i + c] - src[c];
+          const d = target[i + c] - dst[c];
+          srcVar[c] += s * s * weight;
+          dstVar[c] += d * d * weight;
+        }
+      }
+
+      const srcStd = srcVar.map(value => Math.sqrt(value / weightSum) || 1);
+      const dstStd = dstVar.map(value => Math.sqrt(value / weightSum) || 1);
+      const fit = qualityMode.value === "balanced" ? 0.68 : 0.82;
+      for (let i = 0; i < source.length; i += 4) {
+        for (let c = 0; c < 3; c++) {
+          const adjusted = (source[i + c] - src[c]) * (dstStd[c] / Math.max(1, srcStd[c])) + dst[c];
+          source[i + c] = clamp(source[i + c] * (1 - fit) + adjusted * fit, 0, 255);
+        }
+      }
+    }
+
+    function sharpen(data, width, height) {
+      if (qualityMode.value !== "max" || width * height > 900000) return;
+      const copy = new Uint8ClampedArray(data);
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const i = (y * width + x) * 4;
+          for (let c = 0; c < 3; c++) {
+            const center = copy[i + c] * 1.18;
+            const left = copy[i - 4 + c] * 0.045;
+            const right = copy[i + 4 + c] * 0.045;
+            const top = copy[i - width * 4 + c] * 0.045;
+            const bottom = copy[i + width * 4 + c] * 0.045;
+            data[i + c] = clamp(center - left - right - top - bottom, 0, 255);
+          }
+        }
+      }
+    }
+
+    async function processVideo() {
+      stopped = false;
+      chunks = [];
+      if (outputUrl) URL.revokeObjectURL(outputUrl);
+      outputUrl = null;
+      downloadLink.href = "#";
+      downloadLink.setAttribute("aria-disabled", "true");
+
+      const mimeType = chooseMimeType();
+      if (!mimeType) throw new Error("このブラウザは動画書き出しに対応していません。Safariを最新版にしてください。");
+
+      const timeline = await analyzeVideoTimeline();
+      if (stopped) {
+        setState("蛛懈ｭ｢", "bad");
+        progress.value = 0;
+        log("処理を停止しました。");
+        return;
+      }
+      timelineCursor = 0;
+
+      const stream = makeRecorderStream(24);
+      const bitrate = selectedBitrate();
+      recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: bitrate,
+        audioBitsPerSecond: 128000
+      });
+      recorder.ondataavailable = event => {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+
+      const finished = new Promise(resolve => {
+        recorder.onstop = resolve;
+      });
+
+      recorder.start(1000);
+      await seekVideo(0);
+      await sleep(120);
+      await video.play();
+
+      setState("処理中");
+      let frameCount = 0;
+      smoothedItems = [];
+      log(`画質ビットレート目安: ${(bitrate / 1000000).toFixed(1)} Mbps`);
+      log("解析済みの顔位置を補間してレンダリングします。");
+
+      while (!video.ended && !stopped) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        for (const item of timelineItemsAt(timeline, video.currentTime)) drawFace(item);
+        frameCount += 1;
+        if (video.duration) progress.value = clamp(54 + (video.currentTime / video.duration) * 45, 54, 99);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+
+      video.pause();
+      recorder.stop();
+      await finished;
+      for (const track of stream.getTracks()) track.stop();
+
+      if (stopped) {
+        setState("停止", "bad");
+        progress.value = 0;
+        log("処理を停止しました。");
+        return;
+      }
+
+      const blob = new Blob(chunks, { type: recorder.mimeType || mimeType });
+      outputUrl = URL.createObjectURL(blob);
+      const extension = (recorder.mimeType || mimeType).includes("mp4") ? "mp4" : "webm";
+      downloadLink.download = `system-mobile-output.${extension}`;
+      downloadLink.href = outputUrl;
+      downloadLink.setAttribute("aria-disabled", "false");
+      progress.value = 100;
+      setState("完了", "ok");
+      log(`完成しました。処理フレーム目安: ${frameCount}`);
+    }
+
+    controls.addEventListener("submit", async event => {
+      event.preventDefault();
+      try {
+        if (!sourceInput.files[0]) throw new Error("顔画像を選択してください。");
+        if (!videoInput.files[0]) throw new Error("元動画を選択してください。");
+        if (!window.MediaRecorder || !canvas.captureStream) {
+          throw new Error("このブラウザは動画書き出しに対応していません。");
+        }
+
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        progress.value = 0;
+        resetLog("準備しています。");
+        setState("準備中");
+        await ensureFaceMesh();
+        await prepareSourceFace(sourceInput.files[0]);
+        await loadVideo(videoInput.files[0]);
+        await processVideo();
+      } catch (error) {
+        setState("エラー", "bad");
+        log(String(error.message || error));
+      } finally {
+        startButton.disabled = false;
+        stopButton.disabled = true;
+      }
+    });
+
+    stopButton.addEventListener("click", () => {
+      stopped = true;
+      if (video) video.pause();
+    });
+  </script>
+</body>
+</html>
